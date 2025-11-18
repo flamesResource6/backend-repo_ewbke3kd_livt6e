@@ -1,48 +1,85 @@
 """
-Database Schemas
+Database Schemas for Editorial + Shopping Site
 
-Define your MongoDB collection schemas here using Pydantic models.
-These schemas are used for data validation in your application.
+Each Pydantic model maps to a MongoDB collection using the lowercase of the class name.
+Examples:
+- Article -> "article"
+- Product -> "product"
+- Collection -> "collection"
+- Link -> "link"
+- Wishlist -> "wishlist"
+- Subscriber -> "subscriber"
 
-Each Pydantic model represents a collection in your database.
-Model name is converted to lowercase for the collection name:
-- User -> "user" collection
-- Product -> "product" collection
-- BlogPost -> "blogs" collection
+These schemas are used for validation and by the database viewer.
 """
+from typing import List, Optional
+from pydantic import BaseModel, Field, HttpUrl
 
-from pydantic import BaseModel, Field
-from typing import Optional
-
-# Example schemas (replace with your own):
-
-class User(BaseModel):
-    """
-    Users collection schema
-    Collection name: "user" (lowercase of class name)
-    """
-    name: str = Field(..., description="Full name")
-    email: str = Field(..., description="Email address")
-    address: str = Field(..., description="Address")
-    age: Optional[int] = Field(None, ge=0, le=120, description="Age in years")
-    is_active: bool = Field(True, description="Whether user is active")
+class ProductAffiliateLink(BaseModel):
+    retailer: str = Field(..., description="Retailer name, e.g., Amazon, Wayfair")
+    url: HttpUrl = Field(..., description="Affiliate URL with tracking")
+    price: Optional[float] = Field(None, ge=0)
+    availability: Optional[str] = Field(None, description="In Stock, Backorder, etc.")
 
 class Product(BaseModel):
-    """
-    Products collection schema
-    Collection name: "product" (lowercase of class name)
-    """
-    title: str = Field(..., description="Product title")
-    description: Optional[str] = Field(None, description="Product description")
-    price: float = Field(..., ge=0, description="Price in dollars")
-    category: str = Field(..., description="Product category")
-    in_stock: bool = Field(True, description="Whether product is in stock")
+    title: str
+    summary: Optional[str] = None
+    description: Optional[str] = None
+    brand: Optional[str] = None
+    room: Optional[str] = Field(None, description="Living Room, Bedroom, Kitchen, etc.")
+    style: Optional[str] = Field(None, description="Modern, Minimal, Boho, etc.")
+    materials: Optional[List[str]] = None
+    tags: Optional[List[str]] = None
+    rating: Optional[float] = Field(None, ge=0, le=5)
+    image: Optional[HttpUrl] = None
+    links: List[ProductAffiliateLink] = Field(default_factory=list)
 
-# Add your own schemas here:
-# --------------------------------------------------
+class ArticleInlineProduct(BaseModel):
+    product_id: Optional[str] = Field(None, description="Reference to product _id as string")
+    title: Optional[str] = None
+    retailer: Optional[str] = None
+    url: Optional[HttpUrl] = None
 
-# Note: The Flames database viewer will automatically:
-# 1. Read these schemas from GET /schema endpoint
-# 2. Use them for document validation when creating/editing
-# 3. Handle all database operations (CRUD) directly
-# 4. You don't need to create any database endpoints!
+class Article(BaseModel):
+    title: str
+    slug: str
+    hero_image: Optional[HttpUrl] = None
+    excerpt: Optional[str] = None
+    content: Optional[str] = Field(None, description="Rich text or markdown")
+    room: Optional[str] = None
+    style: Optional[str] = None
+    budget: Optional[str] = Field(None, description="Under $1000, Luxury, etc.")
+    tags: Optional[List[str]] = None
+    inline_products: Optional[List[ArticleInlineProduct]] = None
+
+class Collection(BaseModel):
+    title: str
+    slug: str
+    description: Optional[str] = None
+    cover_image: Optional[HttpUrl] = None
+    product_ids: List[str] = Field(default_factory=list, description="List of product _ids as strings")
+    tags: Optional[List[str]] = None
+
+class Link(BaseModel):
+    slug: str = Field(..., description="Short code used in redirect URL, e.g., /r/sofa123")
+    target: HttpUrl = Field(..., description="Destination affiliate URL")
+    source: Optional[str] = Field(None, description="Placement: article slug, component, etc.")
+    utm_campaign: Optional[str] = None
+    utm_source: Optional[str] = None
+    utm_medium: Optional[str] = None
+
+class Click(BaseModel):
+    link_slug: str
+    referrer: Optional[str] = None
+    user_agent: Optional[str] = None
+    ip: Optional[str] = None
+
+class WishlistItem(BaseModel):
+    user_id: Optional[str] = Field(None, description="Anonymous or account user id")
+    product_id: str
+    notes: Optional[str] = None
+
+class Subscriber(BaseModel):
+    email: str
+    interests: Optional[List[str]] = None
+    source: Optional[str] = None
